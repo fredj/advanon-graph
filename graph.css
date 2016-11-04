@@ -1,0 +1,9 @@
+.cumulative-line {
+  stroke-width: 2px;
+  stroke: rgba(70, 130, 180, 1.0);
+  fill: none;
+}
+
+.cumulative-area {
+  fill: rgba(70, 130, 180, 0.2);
+}
