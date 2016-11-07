@@ -1,0 +1,12 @@
+@import url('https://fonts.googleapis.com/css?family=Roboto');
+
+body {
+    font-family: 'Roboto', sans-serif;
+}
+
+#investments-grid {
+    max-width: 960px;
+}
+.vaadin-grid-row.vaadin-grid:after {
+    height: 0 !important;
+}

@@ -25,7 +25,7 @@ var roiAt = function(at, d) {
 
 
 // csv line parser
-var row = function(d) {
+var row = function(d, i) {
   var investment_date = parseDate(d['Financed']);
   if (investment_date) {
     var roi = parseAmount(d['Return on investment']);
@@ -37,6 +37,7 @@ var row = function(d) {
     var duration = (repayment_date - investment_date) / MS_IN_DAY;
 
     return {
+      id: i,
       company: d['Company'],
       investment_date: investment_date,
       investment_amount: investment,
@@ -58,16 +59,11 @@ var y = d3.scaleLinear().range([height, 0]);
 var xaxis = d3.axisBottom(x);
 var yaxis = d3.axisLeft(y);
 
-var svg = d3.select('body').append('svg')
+var svg = d3.select('#investments-graph').append('svg')
   .attr('width', width + margin.left + margin.right)
   .attr('height', height + margin.top + margin.bottom)
   .append('g')
   .attr('transform', 'translate(' + margin.left + ',' + margin.top + ')');
-
-var area = d3.area()
-  .x(function(d) { return x(d.date); })
-  .y0(height)
-  .y1(function(d) { return y(d.value); });
 
 var line = d3.line()
   .x(function(d) { return x(d.date); })
@@ -76,22 +72,29 @@ var line = d3.line()
 
 d3.csv(url, row, function(error, data) {
 
+  // compute the cumulative roi for every date
   var points = [];
   data.forEach(function(d, i, data) {
-    d.y0 = d3.sum(data.map(roiAt.bind(undefined, d.investment_date)));
-    d.y1 = d3.sum(data.map(roiAt.bind(undefined, d.repayment_date)));
     points.push({
       date: d.investment_date,
-      value: d.y0
+      value: d3.sum(data.map(roiAt.bind(undefined, d.investment_date)))
     }, {
       date: d.repayment_date,
-      value: d.y1
+      value: d3.sum(data.map(roiAt.bind(undefined, d.repayment_date)))
     });
   });
   console.assert(points.length === data.length * 2);
 
   points = points.sort(function(a, b) {
     return a.date - b.date;
+  });
+
+  // add cumulative points to the investment
+  data.forEach(function(d, i, data) {
+    d.points = points.filter(function(p) {
+      return p.date >= d.investment_date && p.date <= d.repayment_date;
+    });
+    console.assert(d.points.length >= 2);
   });
 
   x.domain([
@@ -107,11 +110,48 @@ d3.csv(url, row, function(error, data) {
   svg.append('g')
     .call(yaxis);
 
-  svg.append('path')
+  svg.selectAll().data(data).enter()
+    .append('path')
     .attr('class', 'cumulative-line')
-    .attr('d', line(points));
+    .attr('data-investment', function(d) { return d.id;})
+    .attr('d', function(d) {
+      return line(d.points);
+    });
 
-  svg.append('path')
-    .attr('class', 'cumulative-area')
-    .attr('d', area(points));
+  // populate grid
+  var formatDate = d3.timeFormat('%d.%m.%Y');
+
+  var grid = document.querySelector('#investments-grid');
+  grid.columns[1].renderer = function(cell) {
+    cell.element.innerHTML = formatDate(cell.data)
+  };
+  grid.columns[2].renderer = function(cell) {
+    cell.element.innerHTML = formatDate(cell.data)
+  };
+  grid.columns[3].renderer = function(cell) {
+    cell.element.innerHTML = Math.round(cell.data);
+  };
+  grid.columns[4].renderer = function(cell) {
+    cell.element.innerHTML = cell.data + ' CHF';
+  };
+
+  grid.addEventListener('selected-items-changed', function() {
+    var path;
+    var deselected = grid.selection.deselected();
+    if (deselected.length === 1) {
+      path = document.querySelector("[data-investment='" + selected[0] + "']");
+      path.classList.remove('selected');
+    }
+    var selected = grid.selection.selected();
+    if (selected.length === 1) {
+      var previous =  document.querySelector("[data-investment].selected");
+      if (previous) {
+          previous.classList.remove('selected');
+      }
+      path = document.querySelector("[data-investment='" + selected[0] + "']");
+      path.classList.add('selected');
+    }
+  });
+  grid.items = data;
+
 });
