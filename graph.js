@@ -1,7 +1,3 @@
-// https://app.advanon.com/investor/investment_reports
-//
-var url = 'investment-report.csv';
-
 var MS_IN_DAY = 1000 * 60 * 60 * 24;
 
 var parseDate = d3.timeParse('%d.%m.%Y');
@@ -69,8 +65,8 @@ var line = d3.line()
   .x(function(d) { return x(d.date); })
   .y(function(d) { return y(d.value); });
 
-
-d3.csv(url, row, function(error, data) {
+var plot = function(csv) {
+  var data = d3.csvParse(csv, row);
 
   // compute the cumulative roi for every date
   var points = [];
@@ -146,7 +142,7 @@ d3.csv(url, row, function(error, data) {
     if (selected.length === 1) {
       var previous =  document.querySelector("[data-investment].selected");
       if (previous) {
-          previous.classList.remove('selected');
+        previous.classList.remove('selected');
       }
       path = document.querySelector("[data-investment='" + selected[0] + "']");
       path.classList.add('selected');
@@ -154,4 +150,4 @@ d3.csv(url, row, function(error, data) {
   });
   grid.items = data;
 
-});
+};
